@@ -1,0 +1,477 @@
+{
+  "entities": {
+    "AdminMember": {
+      "title": "AdminMember",
+      "description": "Authorized Google accounts allowed to manage participant datasets and lecture locations.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 200,
+          "description": "Lowercase Google email address of the authorized admin."
+        },
+        "addedByUid": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Firebase Auth UID of the admin who granted access."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when admin access was granted."
+        }
+      },
+      "required": ["email", "addedByUid", "createdAt"]
+    },
+    "ActiveDatasetMeta": {
+      "title": "ActiveDatasetMeta",
+      "description": "Admin-only metadata pointer for the currently published PPG UT participant Excel dataset.",
+      "type": "object",
+      "properties": {
+        "isPublic": {
+          "type": "boolean",
+          "description": "Whether the raw dataset is public (always false to protect PII)."
+        },
+        "revisionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Active dataset revision identifier matching chunk documents."
+        },
+        "fileName": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Original Excel filename uploaded by admin."
+        },
+        "fileSize": {
+          "type": "number",
+          "description": "Excel file size in bytes."
+        },
+        "sheetName": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Selected worksheet name."
+        },
+        "availableSheets": {
+          "type": "array",
+          "description": "List of worksheet names in the Excel workbook."
+        },
+        "uploadedAt": {
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 64,
+          "description": "ISO timestamp when admin uploaded the dataset."
+        },
+        "uploadedByUid": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Firebase Auth UID of the uploading admin."
+        },
+        "uploadedByEmail": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Verified email of the uploading admin."
+        },
+        "totalRows": {
+          "type": "number",
+          "description": "Total number of participant rows across all chunks."
+        },
+        "chunkCount": {
+          "type": "number",
+          "description": "Total number of chunk documents for this revision."
+        },
+        "matchedHeaders": {
+          "type": "object",
+          "description": "Map of expected column keys to detected Excel headers."
+        },
+        "missingRequiredHeaders": {
+          "type": "array",
+          "description": "List of missing required column labels."
+        },
+        "extraHeaders": {
+          "type": "array",
+          "description": "List of extra Excel column headers."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last dataset update."
+        }
+      },
+      "required": [
+        "isPublic",
+        "revisionId",
+        "fileName",
+        "fileSize",
+        "sheetName",
+        "availableSheets",
+        "uploadedAt",
+        "uploadedByUid",
+        "uploadedByEmail",
+        "totalRows",
+        "chunkCount",
+        "matchedHeaders",
+        "missingRequiredHeaders",
+        "extraHeaders",
+        "updatedAt"
+      ]
+    },
+    "DatasetChunk": {
+      "title": "DatasetChunk",
+      "description": "Admin-only batch of raw Excel participant rows belonging to a dataset revision.",
+      "type": "object",
+      "properties": {
+        "isPublic": {
+          "type": "boolean",
+          "description": "Whether the raw chunk is public (always false to protect PII)."
+        },
+        "revisionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Revision ID that owns this chunk."
+        },
+        "chunkIndex": {
+          "type": "number",
+          "description": "Zero-based index of the chunk."
+        },
+        "uploadedByUid": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Firebase Auth UID of the uploading admin."
+        },
+        "rows": {
+          "type": "array",
+          "description": "Compact array of raw participant rows."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when chunk was written."
+        }
+      },
+      "required": ["isPublic", "revisionId", "chunkIndex", "uploadedByUid", "rows", "createdAt"]
+    },
+    "LectureLocation": {
+      "title": "LectureLocation",
+      "description": "Manually managed lecture venue and address entry for PPG UT.",
+      "type": "object",
+      "properties": {
+        "isPublic": {
+          "type": "boolean",
+          "description": "Flag indicating location entry is publicly readable."
+        },
+        "namaLokasi": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Venue or campus name."
+        },
+        "lptkTerkait": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Associated LPTK name."
+        },
+        "alamatLengkap": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "description": "Full street address."
+        },
+        "kotaKab": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "City or regency."
+        },
+        "provinsi": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Province."
+        },
+        "kodePos": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "Postal code."
+        },
+        "ruangAtauGedung": {
+          "type": "string",
+          "maxLength": 250,
+          "description": "Building or room details."
+        },
+        "kontakPenanggungJawab": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Contact person or secretariat phone."
+        },
+        "catatan": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Additional notes."
+        },
+        "googleMapsUrl": {
+          "type": "string",
+          "maxLength": 500,
+          "pattern": "^(|https?://.*)$",
+          "description": "Optional direct Google Maps link for the venue."
+        },
+        "updatedByUid": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Firebase Auth UID of the admin who created or updated this location."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "isPublic",
+        "namaLokasi",
+        "lptkTerkait",
+        "alamatLengkap",
+        "kotaKab",
+        "provinsi",
+        "kodePos",
+        "ruangAtauGedung",
+        "kontakPenanggungJawab",
+        "catatan",
+        "updatedByUid",
+        "updatedAt"
+      ]
+    },
+    "LocationPageNote": {
+      "title": "LocationPageNote",
+      "description": "Admin-managed announcement or note displayed above the lecture locations list.",
+      "type": "object",
+      "properties": {
+        "isPublic": {
+          "type": "boolean",
+          "description": "Flag indicating the note is publicly readable."
+        },
+        "noteText": {
+          "type": "string",
+          "maxLength": 15000,
+          "description": "Sanitized HTML or text note content written by admin."
+        },
+        "updatedByUid": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Firebase Auth UID of the admin who updated the note."
+        },
+        "updatedByEmail": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Email of the admin who updated the note."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last note update."
+        }
+      },
+      "required": ["isPublic", "noteText", "updatedByUid", "updatedByEmail", "updatedAt"]
+    },
+    "PrivacyConfig": {
+      "title": "PrivacyConfig",
+      "description": "Publicly readable display privacy settings controlled by admin for User mode.",
+      "type": "object",
+      "properties": {
+        "isPublic": {
+          "type": "boolean",
+          "description": "Flag indicating privacy config is publicly readable by dashboard viewers."
+        },
+        "maskPtkId": {
+          "type": "boolean",
+          "description": "Whether PTK ID digits are partially masked in User mode."
+        },
+        "maskAkunSimpkb": {
+          "type": "boolean",
+          "description": "Whether Akun SIMPKB identifiers are partially masked in User mode."
+        },
+        "updatedByUid": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Firebase Auth UID of the admin who updated privacy config."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last privacy config update."
+        }
+      },
+      "required": ["isPublic", "maskPtkId", "maskAkunSimpkb", "updatedByUid", "updatedAt"]
+    },
+    "DatasetHistoryEntry": {
+      "title": "DatasetHistoryEntry",
+      "description": "Compact snapshot summary saved when a dataset revision is published for wave comparison.",
+      "type": "object",
+      "properties": {
+        "revisionId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "sheetName": { "type": "string", "maxLength": 150 },
+        "uploadedAt": { "type": "string", "maxLength": 64 },
+        "uploadedByUid": { "type": "string", "maxLength": 128 },
+        "uploadedByEmail": { "type": "string", "maxLength": 200 },
+        "totalRows": { "type": "number" },
+        "validUniquePtkCount": { "type": "number" },
+        "totalLptk": { "type": "number" },
+        "totalBidangStudi": { "type": "number" },
+        "totalProvinsi": { "type": "number" },
+        "maleCount": { "type": "number" },
+        "femaleCount": { "type": "number" },
+        "statusCounts": { "type": "object" },
+        "topLptks": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "revisionId",
+        "sheetName",
+        "uploadedAt",
+        "uploadedByUid",
+        "uploadedByEmail",
+        "totalRows",
+        "validUniquePtkCount",
+        "totalLptk",
+        "totalBidangStudi",
+        "totalProvinsi",
+        "maleCount",
+        "femaleCount",
+        "statusCounts",
+        "topLptks",
+        "createdAt"
+      ]
+    },
+    "AuditLogEntry": {
+      "title": "AuditLogEntry",
+      "description": "Admin activity audit log entry.",
+      "type": "object",
+      "properties": {
+        "aksi": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "ringkasan": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "actorUid": { "type": "string", "maxLength": 128 },
+        "actorEmail": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["aksi", "ringkasan", "actorUid", "actorEmail", "createdAt"]
+    },
+    "PublicAnalyticsMeta": {
+      "title": "PublicAnalyticsMeta",
+      "description": "Zero-PII public analytics pointer for User mode dashboards.",
+      "type": "object",
+      "properties": {
+        "isPublic": { "type": "boolean" },
+        "revisionId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "uploadedAt": { "type": "string", "format": "date-time", "maxLength": 64 },
+        "totalRows": { "type": "number" },
+        "validUniquePtkCount": { "type": "number" },
+        "chunkCount": { "type": "number" },
+        "updatedByUid": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "isPublic",
+        "revisionId",
+        "uploadedAt",
+        "totalRows",
+        "validUniquePtkCount",
+        "chunkCount",
+        "updatedByUid",
+        "updatedAt"
+      ]
+    },
+    "PublicAnalyticsChunk": {
+      "title": "PublicAnalyticsChunk",
+      "description": "Anonymized batch of demographic and placement attributes without PII.",
+      "type": "object",
+      "properties": {
+        "isPublic": { "type": "boolean" },
+        "revisionId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "chunkIndex": { "type": "number" },
+        "updatedByUid": { "type": "string", "maxLength": 128 },
+        "rows": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["isPublic", "revisionId", "chunkIndex", "updatedByUid", "rows", "createdAt"]
+    },
+    "PlacementLookup": {
+      "title": "PlacementLookup",
+      "description": "SHA-256 keyed exact-match lookup entry with pre-masked participant identifiers.",
+      "type": "object",
+      "properties": {
+        "isPublic": { "type": "boolean" },
+        "revisionId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "maskedPtkId": { "type": "string", "maxLength": 120 },
+        "maskedSimpkb": { "type": "string", "maxLength": 200 },
+        "maskedName": { "type": "string", "maxLength": 200 },
+        "jenisKelamin": { "type": "string", "maxLength": 60 },
+        "kotaKab": { "type": "string", "maxLength": 150 },
+        "provinsi": { "type": "string", "maxLength": 150 },
+        "lptk": { "type": "string", "maxLength": 200 },
+        "bidangStudi": { "type": "string", "maxLength": 200 },
+        "statusMatrikulasi": { "type": "string", "maxLength": 150 },
+        "updatedByUid": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "isPublic",
+        "revisionId",
+        "maskedPtkId",
+        "maskedSimpkb",
+        "maskedName",
+        "jenisKelamin",
+        "kotaKab",
+        "provinsi",
+        "lptk",
+        "bidangStudi",
+        "statusMatrikulasi",
+        "updatedByUid",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/admins/{adminId}": {
+      "schema": "AdminMember",
+      "description": "Authorized admin accounts keyed by normalized email ID."
+    },
+    "/datasets/{datasetId}": {
+      "schema": "ActiveDatasetMeta",
+      "description": "Admin-only singleton active dataset metadata document at /datasets/active."
+    },
+    "/datasets/{datasetId}/chunks/{chunkId}": {
+      "schema": "DatasetChunk",
+      "description": "Admin-only raw participant row batches for a given dataset revision."
+    },
+    "/public_analytics/{docId}": {
+      "schema": "PublicAnalyticsMeta",
+      "description": "Zero-PII public analytics metadata pointer at /public_analytics/active."
+    },
+    "/public_analytics/{docId}/chunks/{chunkId}": {
+      "schema": "PublicAnalyticsChunk",
+      "description": "Zero-PII anonymized participant attribute chunks for User mode charts and summaries."
+    },
+    "/placement_lookup/{lookupId}": {
+      "schema": "PlacementLookup",
+      "description": "Exact-match SHA-256 hashed placement lookup records with masked PII."
+    },
+    "/locations/{locationId}": {
+      "schema": "LectureLocation",
+      "description": "Publicly readable lecture venues managed by admins."
+    },
+    "/dataset_history/{historyId}": {
+      "schema": "DatasetHistoryEntry",
+      "description": "Admin-only historical dataset snapshots for period comparison."
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLogEntry",
+      "description": "Admin-only audit log of administrative actions."
+    },
+    "/settings/{settingId}": {
+      "schema": "LocationPageNote",
+      "description": "Singleton public notes and privacy configuration documents (/settings/lokasi_note, /settings/privacy_config)."
+    }
+  }
+}

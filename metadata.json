@@ -1,0 +1,8 @@
+{
+  "name": "PPG UT — Participant Data Dashboard",
+  "description": "Integrated Data Monitoring for Better Academic Management. Dashboard monitoring data peserta Pendidikan Profesi Guru (PPG) Universitas Terbuka berbasis file Excel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

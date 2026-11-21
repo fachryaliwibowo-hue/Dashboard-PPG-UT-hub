@@ -1,0 +1,329 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny all unmatched paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core helper primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email_verified == true;
+    }
+
+    function safeAuthEmailId() {
+      return request.auth.token.email.lower().replace('[^a-z0-9_-]', '_');
+    }
+
+    function isAdmin() {
+      return isEmailVerified() && (
+        request.auth.token.email.lower() == 'fachryaliwibowo@gmail.com'
+        || exists(/databases/$(database)/documents/admins/$(safeAuthEmailId()))
+      );
+    }
+
+    // Entity validation blueprints
+    function isValidAdminMember(data) {
+      return data.keys().hasAll(['email', 'addedByUid', 'createdAt'])
+        && data.keys().hasOnly(['email', 'addedByUid', 'createdAt'])
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
+        && data.addedByUid is string && data.addedByUid == request.auth.uid && data.addedByUid.size() <= 128
+        && data.createdAt == request.time;
+    }
+
+    function isValidDatasetMeta(data) {
+      return data.keys().hasAll([
+          'isPublic', 'revisionId', 'fileName', 'fileSize', 'sheetName',
+          'availableSheets', 'uploadedAt', 'uploadedByUid', 'uploadedByEmail',
+          'totalRows', 'chunkCount', 'matchedHeaders', 'missingRequiredHeaders',
+          'extraHeaders', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'isPublic', 'revisionId', 'fileName', 'fileSize', 'sheetName',
+          'availableSheets', 'uploadedAt', 'uploadedByUid', 'uploadedByEmail',
+          'totalRows', 'chunkCount', 'matchedHeaders', 'missingRequiredHeaders',
+          'extraHeaders', 'updatedAt'
+        ])
+        && data.isPublic is bool
+        && isValidId(data.revisionId)
+        && data.fileName is string && data.fileName.size() <= 255
+        && data.fileSize is number && data.fileSize >= 0
+        && data.sheetName is string && data.sheetName.size() <= 150
+        && data.availableSheets is list && data.availableSheets.size() <= 50
+        && (data.availableSheets.size() == 0 || data.availableSheets[0] is string)
+        && data.uploadedAt is string && data.uploadedAt.size() <= 64
+        && data.uploadedByUid is string && data.uploadedByUid == request.auth.uid && data.uploadedByUid.size() <= 128
+        && data.uploadedByEmail is string && data.uploadedByEmail.size() <= 200
+        && data.totalRows is number && data.totalRows >= 0 && data.totalRows <= 200000
+        && data.chunkCount is number && data.chunkCount >= 0 && data.chunkCount <= 1000
+        && data.matchedHeaders is map
+        && data.missingRequiredHeaders is list && data.missingRequiredHeaders.size() <= 20
+        && (data.missingRequiredHeaders.size() == 0 || data.missingRequiredHeaders[0] is string)
+        && data.extraHeaders is list && data.extraHeaders.size() <= 100
+        && (data.extraHeaders.size() == 0 || data.extraHeaders[0] is string)
+        && data.updatedAt == request.time;
+    }
+
+    function isValidDatasetChunk(data) {
+      return data.keys().hasAll(['isPublic', 'revisionId', 'chunkIndex', 'uploadedByUid', 'rows', 'createdAt'])
+        && data.keys().hasOnly(['isPublic', 'revisionId', 'chunkIndex', 'uploadedByUid', 'rows', 'createdAt'])
+        && data.isPublic is bool
+        && isValidId(data.revisionId)
+        && data.chunkIndex is number && data.chunkIndex >= 0 && data.chunkIndex < 1000
+        && data.uploadedByUid is string && data.uploadedByUid == request.auth.uid && data.uploadedByUid.size() <= 128
+        && data.rows is list && data.rows.size() <= 400
+        && (data.rows.size() == 0 || data.rows[0] is map)
+        && data.createdAt == request.time;
+    }
+
+    function isValidPublicAnalyticsMeta(data) {
+      return data.keys().hasAll([
+          'isPublic', 'revisionId', 'uploadedAt', 'totalRows',
+          'validUniquePtkCount', 'chunkCount', 'updatedByUid', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'isPublic', 'revisionId', 'uploadedAt', 'totalRows',
+          'validUniquePtkCount', 'chunkCount', 'updatedByUid', 'updatedAt'
+        ])
+        && data.isPublic is bool && data.isPublic == true
+        && isValidId(data.revisionId)
+        && data.uploadedAt is string && data.uploadedAt.size() <= 64
+        && data.totalRows is number && data.totalRows >= 0 && data.totalRows <= 200000
+        && data.validUniquePtkCount is number && data.validUniquePtkCount >= 0 && data.validUniquePtkCount <= 200000
+        && data.chunkCount is number && data.chunkCount >= 0 && data.chunkCount <= 1000
+        && data.updatedByUid is string && data.updatedByUid == request.auth.uid && data.updatedByUid.size() <= 128
+        && data.updatedAt == request.time;
+    }
+
+    function isValidPublicAnalyticsChunk(data) {
+      return data.keys().hasAll(['isPublic', 'revisionId', 'chunkIndex', 'updatedByUid', 'rows', 'createdAt'])
+        && data.keys().hasOnly(['isPublic', 'revisionId', 'chunkIndex', 'updatedByUid', 'rows', 'createdAt'])
+        && data.isPublic is bool && data.isPublic == true
+        && isValidId(data.revisionId)
+        && data.chunkIndex is number && data.chunkIndex >= 0 && data.chunkIndex < 1000
+        && data.updatedByUid is string && data.updatedByUid == request.auth.uid && data.updatedByUid.size() <= 128
+        && data.rows is list && data.rows.size() <= 400
+        && (data.rows.size() == 0 || data.rows[0] is map)
+        && data.createdAt == request.time;
+    }
+
+    function isValidPlacementLookup(data) {
+      return data.keys().hasAll([
+          'isPublic', 'revisionId', 'maskedPtkId', 'maskedSimpkb', 'maskedName',
+          'jenisKelamin', 'kotaKab', 'provinsi', 'lptk', 'bidangStudi',
+          'statusMatrikulasi', 'updatedByUid', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'isPublic', 'revisionId', 'maskedPtkId', 'maskedSimpkb', 'maskedName',
+          'jenisKelamin', 'kotaKab', 'provinsi', 'lptk', 'bidangStudi',
+          'statusMatrikulasi', 'updatedByUid', 'updatedAt'
+        ])
+        && data.isPublic is bool && data.isPublic == true
+        && isValidId(data.revisionId)
+        && data.maskedPtkId is string && data.maskedPtkId.size() <= 120
+        && data.maskedSimpkb is string && data.maskedSimpkb.size() <= 200
+        && data.maskedName is string && data.maskedName.size() <= 200
+        && data.jenisKelamin is string && data.jenisKelamin.size() <= 60
+        && data.kotaKab is string && data.kotaKab.size() <= 150
+        && data.provinsi is string && data.provinsi.size() <= 150
+        && data.lptk is string && data.lptk.size() <= 200
+        && data.bidangStudi is string && data.bidangStudi.size() <= 200
+        && data.statusMatrikulasi is string && data.statusMatrikulasi.size() <= 150
+        && data.updatedByUid is string && data.updatedByUid == request.auth.uid && data.updatedByUid.size() <= 128
+        && data.updatedAt == request.time;
+    }
+
+    function isValidLectureLocation(data) {
+      return data.keys().hasAll([
+          'isPublic', 'namaLokasi', 'lptkTerkait', 'alamatLengkap',
+          'kotaKab', 'provinsi', 'kodePos', 'ruangAtauGedung',
+          'kontakPenanggungJawab', 'catatan', 'updatedByUid', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'isPublic', 'namaLokasi', 'lptkTerkait', 'alamatLengkap',
+          'kotaKab', 'provinsi', 'kodePos', 'ruangAtauGedung',
+          'kontakPenanggungJawab', 'catatan', 'googleMapsUrl', 'updatedByUid', 'updatedAt'
+        ])
+        && data.isPublic is bool && data.isPublic == true
+        && data.namaLokasi is string && data.namaLokasi.size() >= 1 && data.namaLokasi.size() <= 200
+        && data.lptkTerkait is string && data.lptkTerkait.size() <= 200
+        && data.alamatLengkap is string && data.alamatLengkap.size() >= 1 && data.alamatLengkap.size() <= 1000
+        && data.kotaKab is string && data.kotaKab.size() <= 150
+        && data.provinsi is string && data.provinsi.size() <= 150
+        && data.kodePos is string && data.kodePos.size() <= 20
+        && data.ruangAtauGedung is string && data.ruangAtauGedung.size() <= 250
+        && data.kontakPenanggungJawab is string && data.kontakPenanggungJawab.size() <= 200
+        && data.catatan is string && data.catatan.size() <= 500
+        && (!('googleMapsUrl' in data) || (data.googleMapsUrl is string && data.googleMapsUrl.size() <= 500 && (data.googleMapsUrl.size() == 0 || data.googleMapsUrl.matches('^https?://.*'))))
+        && data.updatedByUid is string && data.updatedByUid == request.auth.uid && data.updatedByUid.size() <= 128
+        && data.updatedAt == request.time;
+    }
+
+    function isValidLocationPageNote(data) {
+      return data.keys().hasAll(['isPublic', 'noteText', 'updatedByUid', 'updatedByEmail', 'updatedAt'])
+        && data.keys().hasOnly(['isPublic', 'noteText', 'updatedByUid', 'updatedByEmail', 'updatedAt'])
+        && data.isPublic is bool && data.isPublic == true
+        && data.noteText is string && data.noteText.size() <= 15000
+        && data.updatedByUid is string && data.updatedByUid == request.auth.uid && data.updatedByUid.size() <= 128
+        && data.updatedByEmail is string && data.updatedByEmail.size() <= 200
+        && data.updatedAt == request.time;
+    }
+
+    function isValidPrivacyConfig(data) {
+      return data.keys().hasAll(['isPublic', 'maskPtkId', 'maskAkunSimpkb', 'updatedByUid', 'updatedAt'])
+        && data.keys().hasOnly(['isPublic', 'maskPtkId', 'maskAkunSimpkb', 'updatedByUid', 'updatedAt'])
+        && data.isPublic is bool && data.isPublic == true
+        && data.maskPtkId is bool
+        && data.maskAkunSimpkb is bool
+        && data.updatedByUid is string && data.updatedByUid == request.auth.uid && data.updatedByUid.size() <= 128
+        && data.updatedAt == request.time;
+    }
+
+    function isValidDatasetHistoryEntry(data) {
+      return data.keys().hasAll([
+          'revisionId', 'sheetName', 'uploadedAt', 'uploadedByUid', 'uploadedByEmail',
+          'totalRows', 'validUniquePtkCount', 'totalLptk', 'totalBidangStudi',
+          'totalProvinsi', 'maleCount', 'femaleCount', 'statusCounts', 'topLptks', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'revisionId', 'sheetName', 'uploadedAt', 'uploadedByUid', 'uploadedByEmail',
+          'totalRows', 'validUniquePtkCount', 'totalLptk', 'totalBidangStudi',
+          'totalProvinsi', 'maleCount', 'femaleCount', 'statusCounts', 'topLptks', 'createdAt'
+        ])
+        && isValidId(data.revisionId)
+        && data.sheetName is string && data.sheetName.size() <= 150
+        && data.uploadedAt is string && data.uploadedAt.size() <= 64
+        && data.uploadedByUid is string && data.uploadedByUid == request.auth.uid && data.uploadedByUid.size() <= 128
+        && data.uploadedByEmail is string && data.uploadedByEmail.size() <= 200
+        && data.totalRows is number && data.totalRows >= 0 && data.totalRows <= 200000
+        && data.validUniquePtkCount is number && data.validUniquePtkCount >= 0 && data.validUniquePtkCount <= 200000
+        && data.totalLptk is number && data.totalLptk >= 0 && data.totalLptk <= 1000
+        && data.totalBidangStudi is number && data.totalBidangStudi >= 0 && data.totalBidangStudi <= 1000
+        && data.totalProvinsi is number && data.totalProvinsi >= 0 && data.totalProvinsi <= 100
+        && data.maleCount is number && data.maleCount >= 0 && data.maleCount <= 200000
+        && data.femaleCount is number && data.femaleCount >= 0 && data.femaleCount <= 200000
+        && data.statusCounts is map && data.statusCounts.size() <= 40
+        && data.topLptks is list && data.topLptks.size() <= 20
+        && (data.topLptks.size() == 0 || data.topLptks[0] is map)
+        && data.createdAt == request.time;
+    }
+
+    function isValidAuditLogEntry(data) {
+      return data.keys().hasAll(['aksi', 'ringkasan', 'actorUid', 'actorEmail', 'createdAt'])
+        && data.keys().hasOnly(['aksi', 'ringkasan', 'actorUid', 'actorEmail', 'createdAt'])
+        && data.aksi is string && data.aksi.size() >= 1 && data.aksi.size() <= 80
+        && data.ringkasan is string && data.ringkasan.size() >= 1 && data.ringkasan.size() <= 500
+        && data.actorUid is string && data.actorUid == request.auth.uid && data.actorUid.size() <= 128
+        && data.actorEmail is string && data.actorEmail.size() <= 200
+        && data.createdAt == request.time;
+    }
+
+    // Authorized Admin Directory
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && (
+        isAdmin() || (isEmailVerified() && adminId == safeAuthEmailId())
+      );
+      allow list: if isAdmin();
+      allow create: if isAdmin() && isValidId(adminId) && isValidAdminMember(incoming());
+      allow delete: if isAdmin() && isValidId(adminId);
+    }
+
+    // Singleton Active Dataset Metadata (/datasets/active) - Admin Only (contains raw PII)
+    match /datasets/{datasetId} {
+      allow get: if datasetId == 'active' && isAdmin();
+      allow create, update: if isAdmin() && datasetId == 'active' && isValidDatasetMeta(incoming());
+      allow delete: if isAdmin() && datasetId == 'active';
+
+      // Participant row chunks for active/incoming revisions (Admin Only)
+      match /chunks/{chunkId} {
+        allow get: if datasetId == 'active' && isValidId(chunkId) && isAdmin();
+        allow create, update: if isAdmin() && datasetId == 'active' && isValidId(chunkId) && isValidDatasetChunk(incoming());
+        allow delete: if isAdmin() && datasetId == 'active' && isValidId(chunkId);
+      }
+    }
+
+    // Zero-PII Public Analytics Pointer & Anonymized Chunks (/public_analytics/active)
+    match /public_analytics/{docId} {
+      allow get: if docId == 'active' && (
+        resource == null || existing().isPublic == true || isAdmin()
+      );
+      allow create, update: if isAdmin() && docId == 'active' && isValidPublicAnalyticsMeta(incoming());
+      allow delete: if isAdmin() && docId == 'active';
+
+      match /chunks/{chunkId} {
+        allow get: if docId == 'active' && isValidId(chunkId) && (
+          resource == null || existing().isPublic == true || isAdmin()
+        );
+        allow create, update: if isAdmin() && docId == 'active' && isValidId(chunkId) && isValidPublicAnalyticsChunk(incoming());
+        allow delete: if isAdmin() && docId == 'active' && isValidId(chunkId);
+      }
+    }
+
+    // Hashed Exact-Match Placement Lookup Index (No list/query allowed, pre-masked PII)
+    match /placement_lookup/{lookupId} {
+      allow get: if isValidId(lookupId) && (
+        resource == null || existing().isPublic == true || isAdmin()
+      );
+      allow list: if false;
+      allow create, update: if isAdmin() && isValidId(lookupId) && isValidPlacementLookup(incoming());
+      allow delete: if isAdmin() && isValidId(lookupId);
+    }
+
+    // Lecture Locations (public read, admin write)
+    match /locations/{locationId} {
+      allow get: if isValidId(locationId) && (
+        resource == null || existing().isPublic == true || isAdmin()
+      );
+      allow list: if existing().isPublic == true;
+      allow create, update: if isAdmin() && isValidId(locationId) && isValidLectureLocation(incoming());
+      allow delete: if isAdmin() && isValidId(locationId);
+    }
+
+    // Dataset Upload History Snapshots (admin only)
+    match /dataset_history/{historyId} {
+      allow get: if isValidId(historyId) && isAdmin();
+      allow list: if isAdmin();
+      allow create, update: if isAdmin() && isValidId(historyId) && isValidDatasetHistoryEntry(incoming());
+      allow delete: if isAdmin() && isValidId(historyId);
+    }
+
+    // Admin Activity Audit Logs (admin only)
+    match /audit_logs/{logId} {
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin() && isValidId(logId) && isValidAuditLogEntry(incoming());
+      allow delete: if isAdmin() && isValidId(logId);
+    }
+
+    // Singleton Page Notes / Public Settings (/settings/lokasi_note, /settings/privacy_config)
+    match /settings/{settingId} {
+      allow get: if (settingId == 'lokasi_note' || settingId == 'privacy_config') && (
+        resource == null || existing().isPublic == true || isAdmin()
+      );
+      allow create, update: if isAdmin() && (
+        (settingId == 'lokasi_note' && isValidLocationPageNote(incoming())) ||
+        (settingId == 'privacy_config' && isValidPrivacyConfig(incoming()))
+      );
+      allow delete: if isAdmin() && (settingId == 'lokasi_note' || settingId == 'privacy_config');
+    }
+  }
+}
